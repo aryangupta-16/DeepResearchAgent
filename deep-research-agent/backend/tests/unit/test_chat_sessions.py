@@ -27,7 +27,6 @@ from app.infrastructure.database.models.conversation import ChatMessage, Convers
 from app.infrastructure.database.postgres import Base
 from app.llm.base import LLMMessage, LLMResponse, LLMUsage
 from app.memory.schemas import MemoryContextItem
-from app.memory.service import MemoryService
 from app.workflows.chat.workflow import ChatWorkflow
 
 # ---- Schema validation ----
@@ -351,3 +350,21 @@ async def test_chat_without_memory_service_omits_block(
     assert len(provider.calls) == 1
     sys_prompt = _extract_system_prompt(provider.calls[0])
     assert "Long-term memory" not in sys_prompt
+
+
+async def test_conversation_summary_tolerates_null_context_mode(db_session) -> None:
+    """Pre-migration rows may have NULL context_mode; the schema must not 422."""
+    from datetime import UTC, datetime
+    from uuid import uuid4
+
+    from app.chat.schemas import ConversationSummary
+
+    conv = Conversation(
+        id=uuid4(),
+        title="Legacy",
+        context_mode=None,  # type: ignore[assignment]
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
+    )
+    summary = ConversationSummary.model_validate(conv)
+    assert summary.context_mode is None

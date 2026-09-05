@@ -369,7 +369,11 @@ class ChatSessionService:
             return None
         if not memories:
             return None
-        lines = ["## Long-term memory", "Use the following facts about the user to personalize your answer. Do not mention this block itself."]
+        lines = [
+            "## Long-term memory",
+            "Use the following facts about the user to personalize "
+            "your answer. Do not mention this block itself.",
+        ]
         for m in memories:
             lines.append(f"- {m.content}")
         return "\n".join(lines)

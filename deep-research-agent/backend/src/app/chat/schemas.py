@@ -60,7 +60,9 @@ class ConversationSummary(BaseModel):
 
     id: UUID
     title: str | None = None
-    context_mode: str = "none"
+    # Defensive: tolerate NULL in pre-existing rows (migration 0009 added the
+    # column with server_default="none", so new rows are always populated).
+    context_mode: str | None = "none"
     created_at: datetime
     updated_at: datetime
 
