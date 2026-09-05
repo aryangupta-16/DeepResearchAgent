@@ -22,4 +22,5 @@ dist/
 # Runtime artifacts
 *.sqlite3
 logs/
-storage/
+# Local file storage for uploaded documents (runtime only)
+storage/documents/

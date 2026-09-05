@@ -26,7 +26,8 @@ htmlcov/
 
 # Data / runtime artifacts
 *.sqlite3
-storage/
+# Local file storage for uploaded documents (runtime only)
+backend/storage/documents/
 logs/
 # Eval score artifacts (generated per CI/nightly run)
 backend/eval-results/
