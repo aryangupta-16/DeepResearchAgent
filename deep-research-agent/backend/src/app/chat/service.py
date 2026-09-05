@@ -45,6 +45,7 @@ from app.common.exceptions import (
 )
 from app.infrastructure.database.models.conversation import ChatMessage, Conversation
 from app.llm.base import LLMMessage, LLMProvider, LLMResponse
+from app.memory.service import MemoryService
 from app.workflows.chat.prompts import CHAT_SYSTEM_PROMPT
 from app.workflows.chat.workflow import ChatWorkflow
 
@@ -70,6 +71,7 @@ class ChatSessionService:
         history_window: int = 20,
         context_provider: ChatContextProvider | None = None,
         retrieval_top_k: int = 4,
+        memory_service: MemoryService | None = None,
     ) -> None:
         self._session = session
         self._repo = repository or ConversationRepository(session)
@@ -84,6 +86,7 @@ class ChatSessionService:
         self._history_window = max(1, history_window)
         self._context_provider = context_provider
         self._retrieval_top_k = max(1, retrieval_top_k)
+        self._memory_service = memory_service
 
     # ---- Conversation lifecycle ----
 
@@ -217,6 +220,11 @@ class ChatSessionService:
             context_sources = await self._retrieve_context(content)
             if context_sources:
                 system_prompt = build_grounded_system_prompt(context_sources)
+
+        # Inject relevant long-term memories as personalization context.
+        memory_block = await self._build_memory_block(content)
+        if memory_block:
+            system_prompt = f"{system_prompt}\n\n{memory_block}"
         return history, context_sources, system_prompt
 
     async def _persist_assistant(
@@ -342,6 +350,29 @@ class ChatSessionService:
                 exc_info=True,
             )
             return []
+
+    # ---- Long-term memory ----
+
+    async def _build_memory_block(self, content: str) -> str | None:
+        """Build a memory context block for the system prompt (never raises).
+
+        Injects the most relevant active memories so the assistant can
+        personalize its answer. Returns None when no memories exist or the
+        memory service isn't configured.
+        """
+        if self._memory_service is None:
+            return None
+        try:
+            memories = await self._memory_service.retrieve_relevant(content)
+        except Exception:  # noqa: BLE001 - memory is best-effort
+            logger.warning("Memory retrieval failed; proceeding without it.", exc_info=True)
+            return None
+        if not memories:
+            return None
+        lines = ["## Long-term memory", "Use the following facts about the user to personalize your answer. Do not mention this block itself."]
+        for m in memories:
+            lines.append(f"- {m.content}")
+        return "\n".join(lines)
 
     # ---- Helpers ----
 

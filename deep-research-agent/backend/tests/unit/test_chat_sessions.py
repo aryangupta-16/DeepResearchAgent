@@ -26,6 +26,8 @@ from app.common.exceptions import ConversationNotFoundError, ValidationError
 from app.infrastructure.database.models.conversation import ChatMessage, Conversation
 from app.infrastructure.database.postgres import Base
 from app.llm.base import LLMMessage, LLMResponse, LLMUsage
+from app.memory.schemas import MemoryContextItem
+from app.memory.service import MemoryService
 from app.workflows.chat.workflow import ChatWorkflow
 
 # ---- Schema validation ----
@@ -238,3 +240,114 @@ async def test_title_derivation_bounded_and_first_line(db_session) -> None:
 def test_models_are_registered_on_base() -> None:
     assert Conversation.__tablename__ == "conversations"
     assert ChatMessage.__tablename__ == "chat_messages"
+
+
+# ---- Memory injection into chat ----
+
+
+class _FakeMemoryService:
+    """Minimal MemoryService stand-in that returns fixed memories."""
+
+    def __init__(self, memories: list[MemoryContextItem] | None = None) -> None:
+        self._memories = memories or []
+        self.calls: list[str] = []
+
+    async def retrieve_relevant(self, query: str) -> list[MemoryContextItem]:
+        self.calls.append(query)
+        return self._memories
+
+
+def _extract_system_prompt(messages: list[LLMMessage]) -> str:
+    """Pull the system message content out of a message list."""
+    for msg in messages:
+        if msg.role == "system":
+            return msg.content
+    return ""
+
+
+def _service_with_memory(
+    session: AsyncSession,
+    provider: RecordingProvider,
+    memory_service: _FakeMemoryService,
+) -> ChatSessionService:
+    return ChatSessionService(
+        session=session,
+        workflow=ChatWorkflow(provider=provider),
+        history_window=20,
+        memory_service=memory_service,  # type: ignore[arg-type]
+    )
+
+
+async def test_chat_injects_relevant_memories_into_prompt(
+    db_session, provider
+) -> None:
+    memories = [
+        MemoryContextItem(
+            id="1",
+            content="User prefers concise answers.",
+            memory_type="preference",
+            importance=0.9,
+            source="explicit",
+        ),
+        MemoryContextItem(
+            id="2",
+            content="User is interested in robotics.",
+            memory_type="interest",
+            importance=0.8,
+            source="explicit",
+        ),
+    ]
+    memory_service = _FakeMemoryService(memories)
+    service = _service_with_memory(db_session, provider, memory_service)
+
+    conv = await service.create_conversation(ConversationCreate(title="Memory test"))
+    await service.send_message(conv.id, MessageCreate(content="Tell me about robots"))
+
+    # Memory service was queried with the user's message.
+    assert memory_service.calls == ["Tell me about robots"]
+    # The system prompt sent to the provider should contain both memory contents.
+    assert len(provider.calls) == 1
+    sys_prompt = _extract_system_prompt(provider.calls[0])
+    assert "Long-term memory" in sys_prompt
+    assert "concise answers" in sys_prompt
+    assert "robotics" in sys_prompt
+
+
+async def test_chat_skips_memory_block_when_no_memories(
+    db_session, provider
+) -> None:
+    memory_service = _FakeMemoryService([])
+    service = _service_with_memory(db_session, provider, memory_service)
+
+    conv = await service.create_conversation(ConversationCreate(title="No memory"))
+    await service.send_message(conv.id, MessageCreate(content="Hello"))
+
+    assert len(provider.calls) == 1
+    sys_prompt = _extract_system_prompt(provider.calls[0])
+    assert "Long-term memory" not in sys_prompt
+
+
+async def test_chat_proceeds_when_memory_service_raises(
+    db_session, provider
+) -> None:
+    class _RaisingMemoryService:
+        async def retrieve_relevant(self, query: str) -> list[MemoryContextItem]:
+            raise RuntimeError("memory unavailable")
+
+    service = _service_with_memory(db_session, provider, _RaisingMemoryService())  # type: ignore[arg-type]
+
+    conv = await service.create_conversation(ConversationCreate(title="Fail soft"))
+    # Should not raise — memory is best-effort.
+    msg = await service.send_message(conv.id, MessageCreate(content="Hi"))
+    assert msg.content  # got a reply despite memory failure
+
+
+async def test_chat_without_memory_service_omits_block(
+    db_session, provider
+) -> None:
+    service = _service(db_session, provider)
+    conv = await service.create_conversation(ConversationCreate(title="Plain"))
+    await service.send_message(conv.id, MessageCreate(content="Hey"))
+    assert len(provider.calls) == 1
+    sys_prompt = _extract_system_prompt(provider.calls[0])
+    assert "Long-term memory" not in sys_prompt

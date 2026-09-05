@@ -248,6 +248,30 @@ per-source evidence; chat + report pages serve cleanly.
 
 ---
 
+## Phase C6 — Long-term memory (chat personalization) — ✅ COMPLETE
+
+The memory domain (`app/memory/` — model, repository, service, LLM extraction,
+API routes, frontend panel) existed as an isolated module. This phase wires it
+into chat so the assistant personalizes replies from remembered facts.
+
+__Chat integration (`app/chat/service.py`):__ `ChatSessionService` now accepts
+an optional `MemoryService`; at turn-build time it calls
+`retrieve_relevant(user_message)` and, when memories exist, appends a
+`## Long-term memory` block (one bullet per fact) to the system prompt. The
+injection is **best-effort**: no memories → block omitted; memory service
+raises → turn still completes (logged); no memory service configured → prompt
+is unchanged. Four new unit tests cover: memories injected, empty omitted,
+failure tolerated, and absent service omitted — all green.
+
+__Frontend (`components/memory/MemoryPanel.tsx`, `/memory` page):__ already
+existed with create/list/delete, type tags, and sidebar nav entry. No changes
+needed.
+
+__Tests:__ +4 backend unit. Totals: __229 backend unit, 51 integration, 64
+frontend__ — all green, ruff/tsc/ESLint clean.
+
+---
+
 ## Why this shape and not another
 
 - __3 phases, not 6:__ observability+reliability are one unit (verify fixes with metrics); guardrails+evals are one unit (guardrails are verified *by* evals); chat is cleanly separable user value.

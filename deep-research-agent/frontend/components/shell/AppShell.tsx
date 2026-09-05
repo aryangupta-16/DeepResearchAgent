@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { FileText, History, MessagesSquare, PenLine } from "lucide-react";
+import { FileText, History, MessagesSquare, PenLine, Brain } from "lucide-react";
 import { listResearch } from "@/lib/api/research";
 import { listConversations } from "@/lib/api/chat";
 import type { ResearchJobSummary } from "@/lib/types/research";
@@ -12,6 +12,7 @@ import type { ConversationSummary } from "@/lib/types/chat";
 const NAV_ITEMS = [
   { href: "/", label: "New Research", icon: PenLine },
   { href: "/chat", label: "Chat", icon: MessagesSquare },
+  { href: "/memory", label: "Memory", icon: Brain },
   { href: "/documents", label: "Documents", icon: FileText },
 ];
 

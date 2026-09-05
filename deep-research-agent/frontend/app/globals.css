@@ -2211,3 +2211,170 @@ h4 {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---- Memory page + panel ---- */
+
+.memory-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 20px 60px;
+  width: 100%;
+}
+
+.memory-header {
+  margin-bottom: 24px;
+}
+
+.memory-header h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: var(--text-primary, #111);
+}
+
+.memory-subtitle {
+  margin: 0;
+  color: var(--text-muted, #666);
+  font-size: 0.875rem;
+}
+
+.memory-add-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  align-items: stretch;
+}
+
+.memory-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: var(--surface, #fff);
+  color: var(--text-primary, #111);
+}
+
+.memory-input:focus {
+  outline: none;
+  border-color: var(--accent, #4f46e5);
+  box-shadow: 0 0 0 2px var(--accent-alpha, rgba(79, 70, 229, 0.15));
+}
+
+.memory-type-select {
+  padding: 10px 12px;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  background: var(--surface, #fff);
+  color: var(--text-primary, #111);
+  cursor: pointer;
+}
+
+.memory-add-btn {
+  padding: 10px 18px;
+  background: var(--accent, #4f46e5);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.memory-add-btn:hover:not(:disabled) {
+  background: var(--accent-hover, #4338ca);
+}
+
+.memory-add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.memory-error {
+  padding: 10px 14px;
+  background: var(--error-bg, #fef2f2);
+  border: 1px solid var(--error-border, #fecaca);
+  border-radius: 8px;
+  color: var(--error-text, #991b1b);
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.memory-empty {
+  color: var(--text-muted, #666);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.memory-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.memory-item {
+  padding: 14px 16px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #eee);
+  border-radius: 10px;
+  transition: border-color 0.15s;
+}
+
+.memory-item:hover {
+  border-color: var(--border-hover, #ccc);
+}
+
+.memory-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.memory-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.memory-tag-preference { background: #eff6ff; color: #1d4ed8; }
+.memory-tag-interest { background: #f0fdf4; color: #15803d; }
+.memory-tag-goal { background: #fef3c7; color: #b45309; }
+.memory-tag-context { background: #f3f4f6; color: #374151; }
+.memory-tag-instruction { background: #fae8ff; color: #a21caf; }
+.memory-tag-fact { background: #ecfeff; color: #0e7490; }
+
+.memory-content {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-primary, #111);
+  line-height: 1.5;
+}
+
+.memory-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted, #999);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.memory-delete-btn:hover {
+  color: var(--error-text, #991b1b);
+  background: var(--error-bg, #fef2f2);
+}

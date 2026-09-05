@@ -87,6 +87,7 @@ def get_document_service(session: DbSession):
 
 def get_conversation_service(
     session: DbSession,
+    memory_service: Annotated[MemoryService, Depends(get_memory_service)],
 ) -> ChatSessionService:
     """Build a request-scoped chat session service bound to the DB session.
 
@@ -94,7 +95,8 @@ def get_conversation_service(
     no queue, no jobs — but history is windowed and usage is persisted. When
     an embedding provider is configured, documents-grounded conversations
     (``context_mode="documents"``) retrieve through the same RAG stack the
-    research pipeline uses; otherwise they degrade to plain chat.
+    research pipeline uses; otherwise they degrade to plain chat. Long-term
+    memories are injected as personalization context when available.
     """
     from app.chat.context import DocumentContextProvider
     from app.chat.service import ChatSessionService
@@ -115,8 +117,6 @@ def get_conversation_service(
                 )
             )
     except NotConfiguredError:
-        # Embedding provider configured but unusable (e.g. missing key):
-        # chat still works, just without document grounding.
         context_provider = None
     return ChatSessionService(
         session=session,
@@ -124,6 +124,7 @@ def get_conversation_service(
         history_window=settings.chat_history_window,
         context_provider=context_provider,
         retrieval_top_k=settings.chat_context_top_k,
+        memory_service=memory_service,
     )
 
 
