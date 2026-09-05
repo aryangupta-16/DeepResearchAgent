@@ -1,0 +1,1 @@
+"""LLM abstraction: agents depend on interfaces, not vendor SDKs."""

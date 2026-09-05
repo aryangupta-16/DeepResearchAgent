@@ -1,0 +1,15 @@
+# Prometheus scrape configuration (Phase A monitoring profile).
+# Targets use Docker Compose service DNS names (internal network).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: deep-research-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8000"]
+
+  - job_name: deep-research-worker
+    static_configs:
+      - targets: ["worker:9091"]

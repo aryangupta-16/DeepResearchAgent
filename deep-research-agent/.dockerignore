@@ -1,0 +1,31 @@
+# Never bake local secrets or environment files into the build context / images.
+**/.env
+**/.env.*
+!**/.env.example
+
+# VCS / OS noise
+.git/
+.github/
+.idea/
+.vscode/
+.DS_Store
+
+# Python
+backend/.venv/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/*.egg-info/
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/coverage/
+frontend/*.tsbuildinfo
+
+# Docs and editor scratch files are irrelevant to builds
+*.md
+!README.md

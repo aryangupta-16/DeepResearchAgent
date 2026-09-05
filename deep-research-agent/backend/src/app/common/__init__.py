@@ -1,0 +1,1 @@
+"""Genuinely shared low-level utilities/types (no dumping ground)."""

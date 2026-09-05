@@ -1,0 +1,25 @@
+# Environment
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Runtime artifacts
+*.sqlite3
+logs/
+storage/

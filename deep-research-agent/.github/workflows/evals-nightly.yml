@@ -1,0 +1,55 @@
+name: Nightly live-LLM evals
+
+# Phase B1: nightly tier-2 eval run with the real provider. Scores are trended
+# as artifacts (relative comparison only — judge scores are too noisy for
+# absolute gates). Requires OPENAI_API_KEY as a repository secret.
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # 03:00 UTC daily
+  workflow_dispatch: {} # manual trigger for on-demand runs
+
+concurrency:
+  group: nightly-evals
+  cancel-in-progress: false
+
+jobs:
+  evals:
+    name: Live eval run
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.repository_owner != 'placeholder' }}
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Sync dependencies
+        run: uv sync --frozen
+
+      - name: Run live evals
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "OPENAI_API_KEY not configured; skipping live eval run."
+            exit 0
+          fi
+          uv run python -m evals.runner --tier live
+
+      - name: Upload eval artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-scores-live
+          path: backend/eval-results/*.json
+          if-no-files-found: ignore

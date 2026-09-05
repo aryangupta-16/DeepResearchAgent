@@ -1,0 +1,86 @@
+{
+  "title": "Deep Research — Reliability & Cost",
+  "uid": "deep-research-phase-a",
+  "timezone": "browser",
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "HTTP request rate (1m) by endpoint/status",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum by (endpoint, status) (rate(app_http_requests_total[1m]))",
+          "legendFormat": "{{endpoint}} {{status}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Job duration p50/p95 by outcome",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le, outcome) (rate(app_job_duration_seconds_bucket[5m])))",
+          "legendFormat": "p50 {{outcome}}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, outcome) (rate(app_job_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95 {{outcome}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Job failures by reason (5m)",
+      "gridPos": {"x": 0, "y": 8, "w": 8, "h": 8},
+      "targets": [
+        {
+          "expr": "sum by (reason) (rate(app_job_failures_total[5m]))",
+          "legendFormat": "{{reason}}"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "LLM circuit state (1=open, 0.5=probing, 0=closed)",
+      "gridPos": {"x": 8, "y": 8, "w": 8, "h": 8},
+      "targets": [
+        {"expr": "app_provider_circuit_open", "legendFormat": "{{provider}}"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Queue + DLQ depth",
+      "gridPos": {"x": 16, "y": 8, "w": 8, "h": 8},
+      "targets": [
+        {"expr": "app_queue_depth", "legendFormat": "{{queue}}"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "LLM token usage (5m rate) — cost driver",
+      "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum by (agent, kind) (rate(app_llm_tokens_total[5m]))",
+          "legendFormat": "{{agent}} {{kind}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Job retries & dead letters (5m)",
+      "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "rate(app_task_retries_total[5m])", "legendFormat": "retries"},
+        {
+          "expr": "sum by (queue) (rate(app_dead_letter_total[5m]))",
+          "legendFormat": "DLQ {{queue}}"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1
+}

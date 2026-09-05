@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1
+
+# Background worker image (shares the same codebase as the API process).
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS worker
+
+ENV PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    PATH="/app/.venv/bin:$PATH"
+
+WORKDIR /app
+
+COPY backend/pyproject.toml backend/uv.lock ./
+COPY backend/src ./src
+RUN uv sync --no-dev --frozen
+
+# Alembic schema + migration scripts (the worker applies them at startup too).
+COPY backend/alembic.ini ./
+COPY backend/migrations ./migrations
+
+CMD ["uv", "run", "python", "-m", "app.infrastructure.queue.workers"]

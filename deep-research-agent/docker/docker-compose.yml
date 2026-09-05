@@ -1,0 +1,143 @@
+services:
+  postgres:
+    # pgvector-enabled PostgreSQL (same major version as before); required for
+    # document embeddings (Phase 8).
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: deep_research
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d deep_research"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    env_file:
+      # Optional: absent .env (e.g. CI) falls back to environment/default values.
+      - path: ../backend/.env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/deep_research
+      REDIS_URL: redis://redis:6379/0
+      RUN_MIGRATIONS_ON_STARTUP: "true"
+      # Long-term memory toggle (Phase 9): research runs with or without it.
+      MEMORY_ENABLED: ${MEMORY_ENABLED:-true}
+    ports:
+      - "8000:8000"
+    volumes:
+      # Document binaries must be shared with the worker (parse step reads them).
+      - documents_data:/app/storage/documents
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Readiness probe: only healthy once the API has started AND migrations are at
+    # head AND Postgres/Redis are reachable (see /api/ready).
+    healthcheck:
+      test: ["CMD", "uv", "run", "python", "-m", "app.healthcheck", "--url", "http://localhost:8000/api/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.worker
+    env_file:
+      # Optional: absent .env (e.g. CI) falls back to environment/default values.
+      - path: ../backend/.env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/deep_research
+      REDIS_URL: redis://redis:6379/0
+      RUN_MIGRATIONS_ON_STARTUP: "true"
+      # Long-term memory toggle (Phase 9): worker also runs without it.
+      MEMORY_ENABLED: ${MEMORY_ENABLED:-true}
+    # Phase A: process-local Prometheus metrics (jobs, LLM tokens, queue depth).
+    ports:
+      - "127.0.0.1:9091:9091"
+    volumes:
+      # Shared with the api service so the worker can read uploaded binaries.
+      - documents_data:/app/storage/documents
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---- Monitoring stack (Phase A; opt-in: docker compose --profile monitoring up)
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    profiles: ["monitoring"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    profiles: ["monitoring"]
+    environment:
+      # Anonymous viewer by default; change for anything exposed beyond localhost.
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "127.0.0.1:3001:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        # Browser-visible backend base; overridable via the environment.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api}
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api}
+    ports:
+      - "3000:3000"
+    # The frontend is a static app: it may start even if the API is still warming
+    # up, so depend only on the API container being started (not healthy).
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  documents_data:
+  prometheus_data:
+  grafana_data:

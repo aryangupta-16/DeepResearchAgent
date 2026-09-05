@@ -1,0 +1,25 @@
+# syntax=docker/dockerfile:1
+
+# Build context = repository root (see docker-compose.yml).
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS backend
+
+ENV PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    PATH="/app/.venv/bin:$PATH"
+
+WORKDIR /app
+
+# Install dependencies first for better layer caching.
+COPY backend/pyproject.toml backend/uv.lock ./
+COPY backend/src ./src
+RUN uv sync --no-dev --frozen
+
+# Alembic schema + migration scripts (the API applies them at startup).
+# NOTE: keep these as two COPYs so the scripts land in /app/migrations/, not /app/.
+COPY backend/alembic.ini ./
+COPY backend/migrations ./migrations
+
+EXPOSE 8000
+
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

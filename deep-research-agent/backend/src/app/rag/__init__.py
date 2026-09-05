@@ -1,0 +1,1 @@
+"""RAG: searchable knowledge (documents, chunks, embeddings, retrieval)."""

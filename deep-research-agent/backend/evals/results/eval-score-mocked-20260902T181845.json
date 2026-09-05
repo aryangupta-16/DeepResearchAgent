@@ -1,0 +1,89 @@
+{
+  "tier": "mocked",
+  "total_cases": 11,
+  "mean_citation_precision": 0.9091,
+  "cases_with_violations": 1,
+  "rubric_pass_rate": 1.0,
+  "passed": true,
+  "per_case": [
+    {
+      "case_id": "gq-001",
+      "integrity_violations": [],
+      "citation_precision": 1.0,
+      "rubric_pass": true,
+      "rubric_failures": []
+    },
+    {
+      "case_id": "gq-002",
+      "integrity_violations": [],
+      "citation_precision": 1.0,
+      "rubric_pass": true,
+      "rubric_failures": []
+    },
+    {
+      "case_id": "gq-003",
+      "integrity_violations": [],
+      "citation_precision": 1.0,
+      "rubric_pass": true,
+      "rubric_failures": []
+    },
+    {
+      "case_id": "gq-004",
+      "integrity_violations": [],
+      "citation_precision": 1.0,
+      "rubric_pass": true,
+      "rubric_failures": []
+    },
+    {
+      "case_id": "gq-005",
+      "integrity_violations": [],
+      "citation_precision": 1.0,
+      "rubric_pass": true,
+      "rubric_failures": []
+    },
+    {
+      "case_id": "gq-006",
+      "integrity_violations": [],
+      "citation_precision": 1.0,
+      "rubric_pass": true,
+      "rubric_failures": []
+    },
+    {
+      "case_id": "gq-007",
+      "integrity_violations": [],
+      "citation_precision": 1.0,
+      "rubric_pass": true,
+      "rubric_failures": []
+    },
+    {
+      "case_id": "gq-008",
+      "integrity_violations": [],
+      "citation_precision": 1.0,
+      "rubric_pass": true,
+      "rubric_failures": []
+    },
+    {
+      "case_id": "gq-009",
+      "integrity_violations": [],
+      "citation_precision": 1.0,
+      "rubric_pass": true,
+      "rubric_failures": []
+    },
+    {
+      "case_id": "gq-010",
+      "integrity_violations": [],
+      "citation_precision": 1.0,
+      "rubric_pass": true,
+      "rubric_failures": []
+    },
+    {
+      "case_id": "gq-011-broken",
+      "integrity_violations": [
+        "ffffffff-ffff-ffff-ffff-ffffffffffff"
+      ],
+      "citation_precision": 0.0,
+      "rubric_pass": true,
+      "rubric_failures": []
+    }
+  ]
+}
