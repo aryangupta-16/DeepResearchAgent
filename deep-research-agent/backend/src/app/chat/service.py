@@ -44,7 +44,9 @@ from app.common.exceptions import (
     ValidationError,
 )
 from app.infrastructure.database.models.conversation import ChatMessage, Conversation
+from app.infrastructure.database.models.memory import DEFAULT_MEMORY_OWNER
 from app.llm.base import LLMMessage, LLMProvider, LLMResponse
+from app.memory.schemas import MemoryCreate, MemorySource
 from app.memory.service import MemoryService
 from app.workflows.chat.prompts import CHAT_SYSTEM_PROMPT
 from app.workflows.chat.workflow import ChatWorkflow
@@ -196,6 +198,7 @@ class ChatSessionService:
             assistant_message.completion_tokens,
             len(citations),
         )
+        await self._maybe_extract_memories(conversation, content)
         return assistant_message
 
     # ---- Turn plumbing (shared by sync + streaming paths) ----
@@ -322,6 +325,9 @@ class ChatSessionService:
             assistant_message.completion_tokens,
             len(citations),
         )
+        # Run extraction before `done` so the persisted memories are committed
+        # before the client finalizes the turn.
+        await self._maybe_extract_memories(conversation, content)
         yield {
             "event": "done",
             "data": MessageResponse.model_validate(assistant_message).model_dump(
@@ -377,6 +383,46 @@ class ChatSessionService:
         for m in memories:
             lines.append(f"- {m.content}")
         return "\n".join(lines)
+
+    async def _maybe_extract_memories(
+        self, conversation: Conversation, user_text: str
+    ) -> None:
+        """Extract durable facts from the user's message and persist them.
+
+        Runs a validated LLM extraction over the user's own words; only
+        statements the model recognizes as durable self-facts (name, prefs,
+        goals, standing instructions) become memories, deduplicated by the
+        store's content hash. Best-effort: any failure is logged and the
+        chat turn is unaffected. Memories persist as ``inferred`` source so
+        they remain distinguishable from explicit ones.
+        """
+        if self._memory_service is None:
+            return
+        try:
+            result = await self._memory_service.extract_candidates(user_text)
+            owner = conversation.owner_id or DEFAULT_MEMORY_OWNER
+            for candidate in result.memories:
+                await self._memory_service.create_memory(
+                    MemoryCreate(
+                        content=candidate.content,
+                        memory_type=candidate.memory_type,
+                        importance=candidate.importance,
+                        source=MemorySource.INFERRED,
+                        owner_id=owner,
+                    )
+                )
+            if result.memories:
+                logger.info(
+                    "Auto-saved %d memory(ies) from chat conversation=%s owner=%s",
+                    len(result.memories),
+                    conversation.id,
+                    owner,
+                )
+        except Exception:  # noqa: BLE001 - memory is best-effort
+            logger.warning(
+                "Memory auto-extraction failed; chat turn unaffected.",
+                exc_info=True,
+            )
 
     # ---- Helpers ----
 

@@ -26,7 +26,12 @@ from app.common.exceptions import ConversationNotFoundError, ValidationError
 from app.infrastructure.database.models.conversation import ChatMessage, Conversation
 from app.infrastructure.database.postgres import Base
 from app.llm.base import LLMMessage, LLMResponse, LLMUsage
-from app.memory.schemas import MemoryContextItem
+from app.memory.schemas import (
+    MemoryContextItem,
+    MemoryCreate,
+    MemoryExtractionItem,
+    MemoryExtractionResult,
+)
 from app.workflows.chat.workflow import ChatWorkflow
 
 # ---- Schema validation ----
@@ -245,15 +250,29 @@ def test_models_are_registered_on_base() -> None:
 
 
 class _FakeMemoryService:
-    """Minimal MemoryService stand-in that returns fixed memories."""
+    """Minimal MemoryService stand-in returning fixed memories + candidates."""
 
-    def __init__(self, memories: list[MemoryContextItem] | None = None) -> None:
+    def __init__(
+        self,
+        memories: list[MemoryContextItem] | None = None,
+        candidates: list[MemoryExtractionItem] | None = None,
+    ) -> None:
         self._memories = memories or []
+        self._candidates = candidates or []
         self.calls: list[str] = []
+        self.saved: list[MemoryCreate] = []
 
     async def retrieve_relevant(self, query: str) -> list[MemoryContextItem]:
         self.calls.append(query)
         return self._memories
+
+    async def extract_candidates(self, text: str) -> MemoryExtractionResult:
+        self.calls.append(f"extract:{text}")
+        return MemoryExtractionResult(memories=list(self._candidates))
+
+    async def create_memory(self, payload: MemoryCreate) -> object:
+        self.saved.append(payload)
+        return object()
 
 
 def _extract_system_prompt(messages: list[LLMMessage]) -> str:
@@ -302,8 +321,8 @@ async def test_chat_injects_relevant_memories_into_prompt(
     conv = await service.create_conversation(ConversationCreate(title="Memory test"))
     await service.send_message(conv.id, MessageCreate(content="Tell me about robots"))
 
-    # Memory service was queried with the user's message.
-    assert memory_service.calls == ["Tell me about robots"]
+    # Memory service was queried with the user's message (retrieval + extraction).
+    assert "Tell me about robots" in memory_service.calls
     # The system prompt sent to the provider should contain both memory contents.
     assert len(provider.calls) == 1
     sys_prompt = _extract_system_prompt(provider.calls[0])
@@ -368,3 +387,72 @@ async def test_conversation_summary_tolerates_null_context_mode(db_session) -> N
     )
     summary = ConversationSummary.model_validate(conv)
     assert summary.context_mode is None
+
+
+# ---- Auto-extraction of memories from chat turns ----
+
+
+async def test_chat_auto_saves_extracted_memories(db_session, provider) -> None:
+    """'My name is X' style turns persist a dedup-eligible inferred memory."""
+    candidate = MemoryExtractionItem(
+        content="The user's name is Aryan.",
+        memory_type="fact",
+        importance=0.8,
+    )
+    memory_service = _FakeMemoryService(candidates=[candidate])
+    service = _service_with_memory(db_session, provider, memory_service)
+
+    conv = await service.create_conversation(ConversationCreate(title="Intro"))
+    await service.send_message(conv.id, MessageCreate(content="My name is Aryan"))
+
+    # Extraction ran on the user's own words...
+    assert "extract:My name is Aryan" in memory_service.calls
+    # ...and the candidate was persisted as an inferred memory.
+    assert len(memory_service.saved) == 1
+    saved = memory_service.saved[0]
+    assert saved.content == "The user's name is Aryan."
+    assert saved.source.value == "inferred"
+    assert saved.owner_id == "default"  # conversation has no owner_id
+
+
+async def test_chat_auto_extraction_no_candidates_saves_nothing(
+    db_session, provider
+) -> None:
+    memory_service = _FakeMemoryService(candidates=[])
+    service = _service_with_memory(db_session, provider, memory_service)
+
+    conv = await service.create_conversation(ConversationCreate(title="Small talk"))
+    await service.send_message(conv.id, MessageCreate(content="Hi there"))
+
+    assert "extract:Hi there" in memory_service.calls
+    assert memory_service.saved == []
+
+
+async def test_chat_auto_extraction_failure_does_not_break_turn(
+    db_session, provider
+) -> None:
+    class _BrokenExtraction:
+        async def retrieve_relevant(self, query: str) -> list[MemoryContextItem]:
+            return []
+
+        async def extract_candidates(self, text: str) -> MemoryExtractionResult:
+            raise RuntimeError("extraction down")
+
+        async def create_memory(self, payload: MemoryCreate) -> object:
+            raise AssertionError("must not be called")
+
+    service = _service_with_memory(db_session, provider, _BrokenExtraction())  # type: ignore[arg-type]
+
+    conv = await service.create_conversation(ConversationCreate(title="Resilient"))
+    msg = await service.send_message(conv.id, MessageCreate(content="Hello"))
+    assert msg.content  # reply produced despite extraction failure
+
+
+async def test_chat_without_memory_service_skips_extraction(
+    db_session, provider
+) -> None:
+    """No memory service configured → no extraction path at all."""
+    service = _service(db_session, provider)
+    conv = await service.create_conversation(ConversationCreate(title="Bare"))
+    msg = await service.send_message(conv.id, MessageCreate(content="Hey"))
+    assert msg.content
