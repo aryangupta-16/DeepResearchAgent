@@ -20,6 +20,10 @@ RUN uv sync --no-dev --frozen
 COPY deep-research-agent/backend/alembic.ini ./
 COPY deep-research-agent/backend/migrations ./migrations
 
+# Start script that runs both API + Worker
+COPY deep-research-agent/docker/start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/start.sh"]
