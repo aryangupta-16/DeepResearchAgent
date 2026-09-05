@@ -15,12 +15,15 @@ export const CHAT_API_URL =
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL) ||
   "http://localhost:8000/api";
 
+/** Remove trailing slash to prevent double-slash in constructed URLs. */
+export const CHAT_API_BASE = CHAT_API_URL.replace(/\/+$/, "");
+
 /** Start a new chat session; ``title`` seeds the auto-title when omitted. */
 export async function createConversation(
   title?: string,
   contextMode: ChatContextMode = "none",
 ): Promise<ConversationSummary> {
-  const response = await fetch(`${CHAT_API_URL}/conversations`, {
+  const response = await fetch(`${CHAT_API_BASE}/conversations`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -38,14 +41,14 @@ export async function listConversations(
   offset = 0,
 ): Promise<ConversationListResponse> {
   const response = await fetch(
-    `${CHAT_API_URL}/conversations?limit=${limit}&offset=${offset}`,
+    `${CHAT_API_BASE}/conversations?limit=${limit}&offset=${offset}`,
   );
   if (!response.ok) throw await parseApiError(response);
   return (await response.json()) as ConversationListResponse;
 }
 
 export async function getConversation(id: string): Promise<ConversationDetail> {
-  const response = await fetch(`${CHAT_API_URL}/conversations/${id}`);
+  const response = await fetch(`${CHAT_API_BASE}/conversations/${id}`);
   if (!response.ok) throw await parseApiError(response);
   return (await response.json()) as ConversationDetail;
 }
@@ -55,7 +58,7 @@ export async function updateConversation(
   id: string,
   contextMode: ChatContextMode,
 ): Promise<ConversationSummary> {
-  const response = await fetch(`${CHAT_API_URL}/conversations/${id}`, {
+  const response = await fetch(`${CHAT_API_BASE}/conversations/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ context_mode: contextMode }),
@@ -65,7 +68,7 @@ export async function updateConversation(
 }
 
 export async function deleteConversation(id: string): Promise<void> {
-  const response = await fetch(`${CHAT_API_URL}/conversations/${id}`, {
+  const response = await fetch(`${CHAT_API_BASE}/conversations/${id}`, {
     method: "DELETE",
   });
   if (!response.ok && response.status !== 404) {
@@ -78,7 +81,7 @@ export async function sendMessage(
   id: string,
   content: string,
 ): Promise<ChatMessage> {
-  const response = await fetch(`${CHAT_API_URL}/conversations/${id}/messages`, {
+  const response = await fetch(`${CHAT_API_BASE}/conversations/${id}/messages`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content }),
@@ -106,7 +109,7 @@ export function streamMessage(
   void (async () => {
     try {
       const response = await fetch(
-        `${CHAT_API_URL}/conversations/${id}/messages/stream`,
+        `${CHAT_API_BASE}/conversations/${id}/messages/stream`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

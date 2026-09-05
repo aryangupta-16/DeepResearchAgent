@@ -17,12 +17,15 @@ export const API_URL =
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL) ||
   "http://localhost:8000/api";
 
+/** Remove trailing slash to prevent double-slash in constructed URLs. */
+export const API_BASE = API_URL.replace(/\/+$/, "");
+
 export async function createResearch(
   query: string,
   workflowType = "deep_research",
   documentIds: string[] = [],
 ): Promise<ResearchJob> {
-  const response = await fetch(`${API_URL}/research`, {
+  const response = await fetch(`${API_BASE}/research`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -36,13 +39,13 @@ export async function createResearch(
 }
 
 export async function getResearch(id: string): Promise<ResearchJob> {
-  const response = await fetch(`${API_URL}/research/${id}`);
+  const response = await fetch(`${API_BASE}/research/${id}`);
   if (!response.ok) throw await parseApiError(response);
   return (await response.json()) as ResearchJob;
 }
 
 export async function getResearchTasks(id: string): Promise<ResearchTasksResponse> {
-  const response = await fetch(`${API_URL}/research/${id}/tasks`);
+  const response = await fetch(`${API_BASE}/research/${id}/tasks`);
   if (!response.ok) throw await parseApiError(response);
   return (await response.json()) as ResearchTasksResponse;
 }
@@ -50,7 +53,7 @@ export async function getResearchTasks(id: string): Promise<ResearchTasksRespons
 export async function getResearchSources(
   id: string,
 ): Promise<ResearchSourcesResponse> {
-  const response = await fetch(`${API_URL}/research/${id}/sources`);
+  const response = await fetch(`${API_BASE}/research/${id}/sources`);
   if (!response.ok) throw await parseApiError(response);
   return (await response.json()) as ResearchSourcesResponse;
 }
@@ -61,7 +64,7 @@ export async function listResearch(
   offset = 0,
 ): Promise<ResearchListResponse> {
   const response = await fetch(
-    `${API_URL}/research?limit=${limit}&offset=${offset}`,
+    `${API_BASE}/research?limit=${limit}&offset=${offset}`,
   );
   if (!response.ok) throw await parseApiError(response);
   return (await response.json()) as ResearchListResponse;
@@ -79,5 +82,5 @@ export function parseReport(job: ResearchJob | null): ResearchReport | null {
 
 /** URL to download a completed report as a Markdown document. */
 export function reportMarkdownUrl(id: string): string {
-  return `${API_URL}/research/${id}/report.md`;
+  return `${API_BASE}/research/${id}/report.md`;
 }
