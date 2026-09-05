@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Background worker image (shares the same codebase as the API process).
+# Build context = repository root (the parent folder containing deep-research-agent/).
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS worker
 
 ENV PYTHONUNBUFFERED=1 \
@@ -10,12 +11,12 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-COPY backend/pyproject.toml backend/uv.lock ./
-COPY backend/src ./src
+COPY deep-research-agent/backend/pyproject.toml deep-research-agent/backend/uv.lock ./
+COPY deep-research-agent/backend/src ./src
 RUN uv sync --no-dev --frozen
 
 # Alembic schema + migration scripts (the worker applies them at startup too).
-COPY backend/alembic.ini ./
-COPY backend/migrations ./migrations
+COPY deep-research-agent/backend/alembic.ini ./
+COPY deep-research-agent/backend/migrations ./migrations
 
 CMD ["uv", "run", "python", "-m", "app.infrastructure.queue.workers"]
