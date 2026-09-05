@@ -15,12 +15,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.settings import Settings, get_settings
 from app.infrastructure.database.postgres import get_session_factory
 from app.llm.factory import get_llm_provider
+from app.memory.service import MemoryService
 from app.research.service import ResearchService
 from app.workflows.chat.service import ChatService
 
 if TYPE_CHECKING:  # pragma: no cover
     from app.chat.service import ChatSessionService
-    from app.memory.service import MemoryService
 
 
 def get_settings_dependency(request: Request) -> Settings:
